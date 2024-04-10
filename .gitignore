@@ -1,2 +1,6 @@
 # dependencies
 node_modules
+\handleError.ts
+\interfaces.ts
+*.service.ts
+\refactoredCode.ts

@@ -137,8 +137,55 @@ function generateServiceClass(className: string, methods: string) {
   angularService += '}'
   return angularService
 }
+function constructUrl(
+  baseApiUrl: string,
+  fullPath: string,
+  paramName?: string,
+): string {
+  const apiUrl = `${baseApiUrl}`
+  const pattern = /\/{([^}]+)}$/
+  const match = fullPath.match(pattern)
 
-function generateServiceMethods(paths: PathOperation[]) {
+  if (match && paramName) {
+    const replacedPath = fullPath.replace(pattern, `/\${${paramName}}`)
+    return `\`${apiUrl}${replacedPath}\``
+  } else {
+    return `\`${apiUrl}${fullPath}\``
+  }
+}
+
+function constructParams(
+  operation: Operation,
+  fullPath: string,
+): { params: string; bodyParam: string } {
+  let params = '()'
+  let bodyParam = ''
+  let requestBodyType = ''
+
+  if (operation.requestBody) {
+    const contentKey = Object.keys(operation.requestBody.content)[0]
+    const ref = (operation.requestBody.content[contentKey] as SchemaContent)
+      .schema.$ref
+    const schemaName = ref.split('/').pop()
+    requestBodyType =
+      schemaName === 'String' ? 'string' : (
+        getResponseType(operation as ApiResponse)
+      )
+    params = `(body: ${requestBodyType})`
+    bodyParam = ', body'
+  }
+
+  const pattern = /\/{([^}]+)}$/
+  const match = fullPath.match(pattern)
+  if (match) {
+    const paramName = match[1]
+    params = `(${paramName}: string)`
+  }
+
+  return { params, bodyParam }
+}
+
+function generateServiceMethods(paths: PathOperation[]): string {
   let methods = ''
   paths.forEach(({ path, method, operation }) => {
     if (!isValidHttpMethod(method)) {
@@ -148,33 +195,16 @@ function generateServiceMethods(paths: PathOperation[]) {
     const methodName = getMethodName(path, method, operation.operationId)
     const fullPath = path.replace('/api', '')
     const apiUrl = `\${ENVIRONMENT_BASE_API_URL}`
-    const pattern = /\/{([^}]+)}$/
-    const match = fullPath.match(pattern)
 
-    let params = '()'
-    let requestBodyType = ''
-    let bodyParam = ''
+    const { params, bodyParam } = constructParams(operation, fullPath)
+    const url = constructUrl(
+      apiUrl,
+      fullPath,
+      params.includes(': string') ?
+        params.match(/\(([^:]+): string\)/)[1]
+      : undefined,
+    )
 
-    if (operation.requestBody) {
-      const contentKey = Object.keys(operation.requestBody.content)[0]
-      const ref = (operation.requestBody.content[contentKey] as SchemaContent)
-        .schema.$ref
-      const schemaName = ref.split('/').pop()
-      if (schemaName == typeof String) requestBodyType = schemaName
-      if (!requestBodyType)
-        requestBodyType = getResponseType(operation as ApiResponse)
-      params = `(body: ${requestBodyType})`
-      bodyParam = ', body'
-    }
-    let url: string
-    if (match) {
-      const paramName = match[1]
-      const replacedPath = fullPath.replace(pattern, `/\${$1}`)
-      url = `\`${apiUrl}${replacedPath}\``
-      params = `(${paramName}: string)`
-    } else {
-      url = `\`${apiUrl}${fullPath}\``
-    }
     const successCodes: string[] = []
     const responseType = getResponseType(operation as ApiResponse)
     for (const code in (operation as ApiResponse).responses) {
@@ -185,11 +215,12 @@ function generateServiceMethods(paths: PathOperation[]) {
         successCodes.push(code)
       }
     }
+
     methods += ` 
     public ${methodName}${params}: Observable<${responseType}> {
       return this.http.${method}<${responseType}>(${url}${bodyParam}, { observe: 'response' }).pipe(
-        map((response : { status: number; body: any })=> {
-          if (response.status === ${Number(successCodes[0])}) {
+        map((response: { status: number; body: ${responseType} | null }) => {
+          if (response.status === ${Number(successCodes[0])} && response.body !== null) {
             return response.body; 
           } else {
             throw new Error('Unexpected status code'); 
@@ -237,7 +268,11 @@ function generateServiceForTag(
   schemas: Schemas,
 ) {
   const serviceName = `${tag}.service`
-  const className = serviceName.replace(/\./g, '')
+  const classNameRefactor = serviceName
+    .split('.')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('')
+  const className = classNameRefactor //serviceName.replace(/\./g, '')
 
   const interfaces = generateInterfacesFromSchemas(schemas)
   const methods = generateServiceMethods(paths)
