@@ -327,7 +327,7 @@ function mapOpenApiTypeToTypeScript(type: string | number) {
     boolean: 'boolean',
     array: '[]',
   }
-  return typeMappings[type] || 'any'
+  return typeMappings[type] || 'unknown'
 }
 
 function isValidHttpMethod(method: string): method is HttpMethod {
