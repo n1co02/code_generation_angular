@@ -62,6 +62,7 @@ type HttpMethod =
   | 'patch'
   | 'options'
   | 'head'
+
 interface ApiResponse {
   tags: string[]
   responses: {
