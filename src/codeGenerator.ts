@@ -245,6 +245,7 @@ function getSuccessCodes(operation: ApiResponse): string[] {
   }
   return successCodes
 }
+
 function getResponseType(operation: ApiResponse): string {
   let responseType = 'Unknown'
   for (const code in operation.responses) {
