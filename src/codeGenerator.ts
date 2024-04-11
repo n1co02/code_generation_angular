@@ -137,6 +137,7 @@ function generateServiceClass(className: string, methods: string) {
   angularService += '}'
   return angularService
 }
+
 function constructUrl(
   baseApiUrl: string,
   fullPath: string,
@@ -205,16 +206,8 @@ function generateServiceMethods(paths: PathOperation[]): string {
       : undefined,
     )
 
-    const successCodes: string[] = []
     const responseType = getResponseType(operation as ApiResponse)
-    for (const code in (operation as ApiResponse).responses) {
-      if (
-        (operation as ApiResponse).responses[code].description === 'Success' ||
-        (operation as ApiResponse).responses[code].description === 'Created'
-      ) {
-        successCodes.push(code)
-      }
-    }
+    const successCodes = getSuccessCodes(operation as ApiResponse)
 
     methods += ` 
     public ${methodName}${params}: Observable<${responseType}> {
@@ -232,7 +225,18 @@ function generateServiceMethods(paths: PathOperation[]): string {
   })
   return methods
 }
-
+function getSuccessCodes(operation: ApiResponse): string[] {
+  const successCodes: string[] = []
+  for (const code in operation.responses) {
+    if (
+      operation.responses[code].description === 'Success' ||
+      operation.responses[code].description === 'Created'
+    ) {
+      successCodes.push(code)
+    }
+  }
+  return successCodes
+}
 function getResponseType(operation: ApiResponse): string {
   let responseType = 'Unknown'
   for (const code in operation.responses) {
@@ -345,15 +349,16 @@ function generateMiddleWare() {
   console.log('handleError.ts file created successfully.')
 }
 
-export async function getFilePath(filePath: string, usePrettier: boolean) {
-  const openApiSpecPath = filePath
-
+export async function getFilePath(
+  openApiSpecPath: string,
+  usePrettier: boolean,
+) {
   const openApiSpecContents = fs.readFileSync(openApiSpecPath, 'utf8')
   const openApiSpec = JSON.parse(openApiSpecContents)
 
   setUsePrettier(usePrettier)
   generateAngularServices(openApiSpec)
-  await generateMiddleWare()
+  generateMiddleWare()
 }
 
 function formatFile(fileName: string) {
