@@ -1,30 +1,63 @@
-import * as readline from 'readline'
-import * as fs from 'fs'
+#!/usr/bin/env node
+import inquirer from 'inquirer'
+import fs from 'fs'
+import chalk from 'chalk'
+import chalkRainbow from 'chalk-rainbow'
+import { createSpinner } from 'nanospinner'
+import figlet from 'figlet'
 import { getFilePath } from './src/codeGenerator'
 
-// Create readline interface
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-})
+const checkFileExists = (filePath) => {
+  return fs.existsSync(filePath)
+}
 
-// Ask for the file path
-rl.question('Please provide your file path: ', (filePath) => {
-  // Check if the file exists
-  if (!fs.existsSync(filePath)) {
-    console.error('File does not exist at the specified path')
-    rl.close()
-    return
-  }
+const run = async () => {
+  console.log(chalk.blue('Welcome to the best Angular Codegeneration Tool!'))
 
-  // Ask for prettier usage
-  rl.question(
-    'Do you want to use Prettier for the files? (yes/no): ',
-    (answer) => {
-      const usePrettier = answer.toLowerCase() === 'yes'
-
-      getFilePath(filePath, usePrettier)
-      rl.close()
+  const { filePath } = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'filePath',
+      message: 'Please provide your file path:',
+      validate: (input) => {
+        if (!checkFileExists(input)) {
+          return 'File does not exist at the specified path. Please enter a valid path.'
+        }
+        return true
+      },
     },
-  )
-})
+  ])
+
+  const { usePrettier } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'usePrettier',
+      message: 'Do you want to use Prettier for the files?',
+      default: false,
+    },
+  ])
+
+  const spinner = createSpinner('Processing...\n').spin()
+
+  try {
+    await getFilePath(filePath, usePrettier)
+    figlet('Success!', (err, data) => {
+      if (err) {
+        spinner.error({ text: `Error: ${err.message}` })
+        console.error(chalk.red(`Error: ${err.message}`))
+        return
+      }
+      spinner.success({ text: chalkRainbow(data) })
+      console.log(
+        chalk.blue(
+          "Your Angular files have been stored in services Directory! Let's go!",
+        ),
+      )
+    })
+  } catch (err) {
+    spinner.error({ text: `Error: ${err.message}` })
+    console.error(chalk.red(`Error: ${err.message}`))
+  }
+}
+
+run().catch((err) => console.error(chalk.red(`Error: ${err.message}`)))

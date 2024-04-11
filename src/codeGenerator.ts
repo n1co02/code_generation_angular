@@ -1,5 +1,7 @@
 import fs from 'fs'
 import { execSync } from 'child_process'
+import chalk from 'chalk'
+import path from 'path'
 
 interface OpenApiSpec {
   paths: Record<string, Record<string, Operation>>
@@ -45,6 +47,7 @@ interface Schema {
 interface Schemas {
   [schemaName: string]: Schema
 }
+
 interface SchemaContent {
   schema: {
     $ref: string
@@ -78,6 +81,8 @@ interface ApiResponse {
     }
   }
 }
+
+const servicesDir = path.join('./services')
 
 function generateAngularServices(spec: OpenApiSpec) {
   const pathsByTag: PathsByTag = {}
@@ -119,9 +124,11 @@ function generateInterfacesFromSchemas(schemas: Schemas): string[] {
   })
 
   const fileName = `interfaces.ts`
-  fs.writeFileSync(fileName, interfaces)
-  if (usePrettierGlobal === true) formatFile(fileName)
-  console.log(`Interfaces written to ${fileName}.`)
+  const filePath = path.join(servicesDir, 'interfaces.ts')
+
+  fs.writeFileSync(filePath, interfaces)
+  if (usePrettierGlobal === true) formatFile(`./services/${fileName}`)
+  console.log(chalk.green(`Interfaces written to ${fileName}.`))
 
   return schemaNames
 }
@@ -225,6 +232,7 @@ function generateServiceMethods(paths: PathOperation[]): string {
   })
   return methods
 }
+
 function getSuccessCodes(operation: ApiResponse): string[] {
   const successCodes: string[] = []
   for (const code in operation.responses) {
@@ -259,11 +267,12 @@ function getResponseType(operation: ApiResponse): string {
 
 function writeServiceToFile(serviceName: string, serviceContent: string) {
   const fileName = `${serviceName}.ts`
-  fs.writeFileSync(fileName, serviceContent, 'utf8')
-  if (usePrettierGlobal === true) {
-    formatFile(fileName)
-  }
-  console.log(`${fileName} has been generated.`)
+  const filePath = path.join(servicesDir, fileName)
+  fs.writeFileSync(filePath, serviceContent, 'utf8')
+
+  if (usePrettierGlobal === true) formatFile(`./services/${fileName}`)
+
+  console.log(chalk.green(`${fileName} has been generated.`))
 }
 
 function generateServiceForTag(
@@ -344,9 +353,11 @@ function generateMiddleWare() {
       return throwError(() => new Error(errorMessage));
   }
   `
-  fs.writeFileSync('handleError.ts', code)
-  if (usePrettierGlobal === true) formatFile('handleError.ts')
-  console.log('handleError.ts file created successfully.')
+  const filePath = path.join(servicesDir, 'handleError.ts')
+
+  fs.writeFileSync(filePath, code)
+  if (usePrettierGlobal === true) formatFile('./services/handleError.ts')
+  console.log(chalk.green('handleError.ts file created successfully.'))
 }
 
 export async function getFilePath(
@@ -355,19 +366,15 @@ export async function getFilePath(
 ) {
   const openApiSpecContents = fs.readFileSync(openApiSpecPath, 'utf8')
   const openApiSpec = JSON.parse(openApiSpecContents)
-
-  setUsePrettier(usePrettier)
+  fs.mkdirSync('services', { recursive: true })
+  usePrettierGlobal = usePrettier
   generateAngularServices(openApiSpec)
   generateMiddleWare()
 }
 
 function formatFile(fileName: string) {
   execSync(`npx prettier ${fileName} --write`, { stdio: 'inherit' })
-  console.log(`${fileName} has been formatted with Prettier.`)
+  console.log(chalk.green(`${fileName} has been formatted with Prettier.`))
 }
 
 export let usePrettierGlobal = false
-
-const setUsePrettier = (usePrettier: boolean) => {
-  usePrettierGlobal = usePrettier
-}
