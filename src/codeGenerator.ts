@@ -369,6 +369,7 @@ export async function getFilePath(
   const openApiSpecContents = fs.readFileSync(openApiSpecPath, 'utf8')
   const openApiSpec = JSON.parse(openApiSpecContents)
   fs.mkdirSync('services', { recursive: true })
+  //side effect, that is used for cleaning up files
   usePrettierGlobal = usePrettier
   generateAngularServices(openApiSpec)
   generateMiddleWare()
