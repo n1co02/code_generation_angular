@@ -247,7 +247,7 @@ function getSuccessCodes(operation: ApiResponse): string[] {
 }
 
 function getResponseType(operation: ApiResponse): string {
-  let responseType = 'Unknown'
+  let responseType = 'unknown'
   for (const code in operation.responses) {
     const response =
       operation.responses[code]?.content?.['application/json']?.schema
@@ -257,7 +257,7 @@ function getResponseType(operation: ApiResponse): string {
         responseType = response.type
         break
       } else if ('$ref' in response && response.$ref) {
-        responseType = response.$ref.split('/').pop() || 'Unknown'
+        responseType = response.$ref.split('/').pop() || 'unknown'
         break
       }
     }
