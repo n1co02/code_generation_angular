@@ -2,7 +2,12 @@ import fs from 'fs'
 import { execSync } from 'child_process'
 import chalk from 'chalk'
 import path from 'path'
-
+import {
+  ANGULAR_SERVICE_TEMPLATE,
+  HANDLE_ERROR_TEMPLATE,
+  METHOD_TEMPLATE,
+  SERVICE_TEMPLATE,
+} from './templateCode'
 interface OpenApiSpec {
   paths: Record<string, Record<string, Operation>>
   components: {
@@ -22,7 +27,7 @@ interface Operation {
       }
     }
   }
-  responses?: Record<string, unknown> // Define a more specific type for responses
+  responses?: Record<string, unknown>
 }
 
 interface PathOperation {
@@ -135,14 +140,10 @@ function generateInterfacesFromSchemas(schemas: Schemas): string[] {
 }
 
 function generateServiceClass(className: string, methods: string) {
-  let angularService = `@Injectable({
-    providedIn: 'root'
-  })
-  export class ${className} {
-    constructor(private http: HttpClient) { }\n`
-
-  angularService += methods
-  angularService += '}'
+  const angularService = SERVICE_TEMPLATE.replace(
+    '{{className}}',
+    className,
+  ).replace('{{methods}}', methods)
   return angularService
 }
 
@@ -216,28 +217,25 @@ function generateServiceMethods(paths: PathOperation[]): string {
     const responseType = getResponseType(operation as ApiResponse)
     const successCodes = getSuccessCodes(operation as ApiResponse)
 
-    methods += ` 
-    public ${methodName}${params}: Observable<${responseType}> {
-      return this.http.${method}<${responseType}>(${url}${bodyParam}, { observe: 'response' }).pipe(
-        map((response: { status: number; body: ${responseType} | null }) => {
-          if (response.status === ${Number(successCodes[0])} && response.body !== null) {
-            return response.body; 
-          } else {
-            throw new Error('Unexpected status code'); 
-          }
-        }),
-        catchError(handleError) 
-      );
-    }\n`
+    const successCode = successCodes.length > 0 ? successCodes[0] : '200' // Fallback or handling if `successCodes` is empty
+
+    // Replace placeholders in the template
+    const methodString = METHOD_TEMPLATE.replace('{{methodName}}', methodName)
+      .replace(/{{params}}/g, params)
+      .replace(/{{httpMethod}}/g, method)
+      .replace(/{{responseType}}/g, responseType)
+      .replace(/{{url}}/g, url)
+      .replace(/{{bodyParam}}/g, bodyParam)
+      .replace(/{{successCode}}/g, successCode)
+
+    methods += methodString
   })
   return methods
 }
 
 function getSuccessCodes(operation: ApiResponse): string[] {
   return Object.keys(operation.responses).filter(
-    (
-      code, // Filtere die Codes
-    ) =>
+    (code) =>
       operation.responses[code].description === 'Success' ||
       operation.responses[code].description === 'Created',
   )
@@ -253,7 +251,7 @@ function getResponseType(operation: ApiResponse): string {
       responseType = response.type
       break
     }
-    if (response?.$ref && '$red' in response) {
+    if (response?.$ref && '$ref' in response) {
       responseType = response.$ref.split('/').pop() || 'unknown'
       break
     }
@@ -286,18 +284,12 @@ function generateServiceForTag(
 
   const interfaces = generateInterfacesFromSchemas(schemas)
   const methods = generateServiceMethods(paths)
-  const angularServiceBoilerplate = `/*This file was generated automatically.
- ************************Your Imports may be different.*************************/
-  import { Injectable } from '@angular/core';
-  import { HttpClient } from '@angular/common/http';
-  import { Observable } from 'rxjs';
-  import { ENVIRONMENT_BASE_API_URL } from '../environments';/*Don't forget to change the path and add a env variable with a connection string file.*/
-  import { catchError, map } from 'rxjs/operators';
-  import { handleError } from './ChangeFilePath'/*Don't forget to change the path of the handleError file.*/;
-  import { ${interfaces.join(', ')} } from './interfaces/ChangeFilePath';/*Don't forget to change the path of the interfaces file.*/
-\n\n`
   const serviceClass = generateServiceClass(className, methods)
-  const finalService = angularServiceBoilerplate + serviceClass
+
+  const finalService = ANGULAR_SERVICE_TEMPLATE.replace(
+    '{{interfaces}}',
+    interfaces.join(', '),
+  ).replace('{{serviceClass}}', serviceClass)
   writeServiceToFile(serviceName, finalService)
 }
 
@@ -332,24 +324,7 @@ function isValidHttpMethod(method: string): method is HttpMethod {
 }
 
 function generateMiddleWare() {
-  const code = `/*This file was generated automatically.*/
-  import { HttpErrorResponse } from '@angular/common/http';
-  import { throwError } from 'rxjs';
-
-  export function handleError(error: HttpErrorResponse) {
-      let errorMessage = 'An unknown error has occurred.';
-      if (error.error instanceof ErrorEvent) {
-          // Client-side or network error occurred.
-          errorMessage = \`An error occurred: \${error.error.message}\`;
-      } else {
-          // The backend returned an unsuccessful response code.
-          errorMessage = \`Server returned code \${error.status}, error message is: \${error.message}\`;
-      }
-      console.error(errorMessage);
-      // Return an observable with a user-facing error message.
-      return throwError(() => new Error(errorMessage));
-  }
-  `
+  const code = HANDLE_ERROR_TEMPLATE
   const filePath = path.join(servicesDir, 'handleError.ts')
 
   fs.writeFileSync(filePath, code)
