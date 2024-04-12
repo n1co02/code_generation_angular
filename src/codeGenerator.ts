@@ -8,85 +8,16 @@ import {
   METHOD_TEMPLATE,
   SERVICE_TEMPLATE,
 } from './templateCode'
-interface OpenApiSpec {
-  paths: Record<string, Record<string, Operation>>
-  components: {
-    schemas: Record<string, Schema>
-  }
-}
-
-interface Operation {
-  tags: string[]
-  operationId?: string
-  requestBody?: {
-    content: {
-      [mediaType: string]: {
-        schema: {
-          $ref: string
-        }
-      }
-    }
-  }
-  responses?: Record<string, unknown>
-}
-
-interface PathOperation {
-  path: string
-  method: string
-  operation: Operation
-}
-
-interface PathsByTag {
-  [tag: string]: PathOperation[]
-}
-
-interface SchemaProperty {
-  type: string
-  nullable?: boolean
-}
-
-interface Schema {
-  properties: Record<string, SchemaProperty>
-}
-
-interface Schemas {
-  [schemaName: string]: Schema
-}
-
-interface SchemaContent {
-  schema: {
-    $ref: string
-  }
-}
-
-type HttpMethod =
-  | 'get'
-  | 'post'
-  | 'put'
-  | 'delete'
-  | 'patch'
-  | 'options'
-  | 'head'
-
-interface ApiResponse {
-  tags: string[]
-  responses: {
-    [statusCode: string]: {
-      description: string
-      content?: {
-        [mediaType: string]: {
-          schema: {
-            type: string
-            $ref?: string
-            items?: {
-              $ref: string
-            }
-          }
-        }
-      }
-    }
-  }
-}
+import {
+  ApiResponse,
+  OpenApiSpec,
+  Operation,
+  PathOperation,
+  PathsByTag,
+  SchemaContent,
+  Schemas,
+} from './interfaces'
+import { HttpMethod } from './types'
 
 const servicesDir = path.join('./services')
 
@@ -219,7 +150,6 @@ function generateServiceMethods(paths: PathOperation[]): string {
 
     const successCode = successCodes.length > 0 ? successCodes[0] : '200' // Fallback or handling if `successCodes` is empty
 
-    // Replace placeholders in the template
     const methodString = METHOD_TEMPLATE.replace('{{methodName}}', methodName)
       .replace(/{{params}}/g, params)
       .replace(/{{httpMethod}}/g, method)
