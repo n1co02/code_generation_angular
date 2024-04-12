@@ -5,7 +5,7 @@ import chalk from 'chalk'
 import chalkRainbow from 'chalk-rainbow'
 import { createSpinner } from 'nanospinner'
 import figlet from 'figlet'
-import { getFilePath } from './src/codeGenerator'
+import { setUpAPIservice } from './src/codeGenerator'
 
 const run = async () => {
   console.log(chalk.blue('Welcome to the best Angular Codegeneration Tool!'))
@@ -30,7 +30,7 @@ const run = async () => {
   const spinner = createSpinner('Processing...\n').spin()
 
   try {
-    await getFilePath(filePath, usePrettier)
+    await setUpAPIservice(filePath, usePrettier)
     const data = figlet.textSync('Success!')
     spinner.success({ text: chalkRainbow(data) })
     console.log(

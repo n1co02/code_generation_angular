@@ -128,7 +128,7 @@ function generateInterfacesFromSchemas(schemas: Schemas): string[] {
   const filePath = path.join(servicesDir, 'interfaces.ts')
 
   fs.writeFileSync(filePath, interfaces)
-  if (usePrettierGlobal === true) formatFile(`./services/${fileName}`)
+  if (usePrettierGlobal) formatFile(`./services/${fileName}`)
   console.log(chalk.green(`Interfaces written to ${fileName}.`))
 
   return schemaNames
@@ -158,9 +158,8 @@ function constructUrl(
   if (match && paramName) {
     const replacedPath = fullPath.replace(pattern, `/\${${paramName}}`)
     return `\`${apiUrl}${replacedPath}\``
-  } else {
-    return `\`${apiUrl}${fullPath}\``
   }
+  return `\`${apiUrl}${fullPath}\``
 }
 
 function constructParams(
@@ -235,16 +234,13 @@ function generateServiceMethods(paths: PathOperation[]): string {
 }
 
 function getSuccessCodes(operation: ApiResponse): string[] {
-  const successCodes: string[] = []
-  for (const code in operation.responses) {
-    if (
+  return Object.keys(operation.responses).filter(
+    (
+      code, // Filtere die Codes
+    ) =>
       operation.responses[code].description === 'Success' ||
-      operation.responses[code].description === 'Created'
-    ) {
-      successCodes.push(code)
-    }
-  }
-  return successCodes
+      operation.responses[code].description === 'Created',
+  )
 }
 
 function getResponseType(operation: ApiResponse): string {
@@ -253,14 +249,13 @@ function getResponseType(operation: ApiResponse): string {
     const response =
       operation.responses[code]?.content?.['application/json']?.schema
 
-    if (response) {
-      if ('type' in response && response.type) {
-        responseType = response.type
-        break
-      } else if ('$ref' in response && response.$ref) {
-        responseType = response.$ref.split('/').pop() || 'unknown'
-        break
-      }
+    if (response?.type && 'type' in response) {
+      responseType = response.type
+      break
+    }
+    if (response?.$ref && '$red' in response) {
+      responseType = response.$ref.split('/').pop() || 'unknown'
+      break
     }
   }
   if (responseType === 'array') responseType = `Array<${operation.tags[0]}>`
@@ -272,7 +267,7 @@ function writeServiceToFile(serviceName: string, serviceContent: string) {
   const filePath = path.join(servicesDir, fileName)
   fs.writeFileSync(filePath, serviceContent, 'utf8')
 
-  if (usePrettierGlobal === true) formatFile(`./services/${fileName}`)
+  if (usePrettierGlobal) formatFile(`./services/${fileName}`)
 
   console.log(chalk.green(`${fileName} has been generated.`))
 }
@@ -319,7 +314,7 @@ function getMethodName(
   return `${method}${name.charAt(0).toUpperCase() + name.slice(1)}`
 }
 
-function mapOpenApiTypeToTypeScript(type: string | number) {
+function mapOpenApiTypeToTypeScript(type: string) {
   const typeMappings = {
     integer: 'number',
     number: 'number',
@@ -358,11 +353,11 @@ function generateMiddleWare() {
   const filePath = path.join(servicesDir, 'handleError.ts')
 
   fs.writeFileSync(filePath, code)
-  if (usePrettierGlobal === true) formatFile('./services/handleError.ts')
+  if (usePrettierGlobal) formatFile('./services/handleError.ts')
   console.log(chalk.green('handleError.ts file created successfully.'))
 }
 
-export async function getFilePath(
+export async function setUpAPIservice(
   openApiSpecPath: string,
   usePrettier: boolean,
 ) {
