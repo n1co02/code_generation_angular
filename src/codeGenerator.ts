@@ -128,7 +128,7 @@ function generateInterfacesFromSchemas(schemas: Schemas): string[] {
   const filePath = path.join(servicesDir, 'interfaces.ts')
 
   fs.writeFileSync(filePath, interfaces)
-  if (usePrettierGlobal === true) formatFile(`./services/${fileName}`)
+  if (usePrettierGlobal) formatFile(`./services/${fileName}`)
   console.log(chalk.green(`Interfaces written to ${fileName}.`))
 
   return schemaNames
@@ -158,9 +158,8 @@ function constructUrl(
   if (match && paramName) {
     const replacedPath = fullPath.replace(pattern, `/\${${paramName}}`)
     return `\`${apiUrl}${replacedPath}\``
-  } else {
-    return `\`${apiUrl}${fullPath}\``
   }
+  return `\`${apiUrl}${fullPath}\``
 }
 
 function constructParams(
@@ -236,6 +235,7 @@ function generateServiceMethods(paths: PathOperation[]): string {
 
 function getSuccessCodes(operation: ApiResponse): string[] {
   const successCodes: string[] = []
+  // Geht, aber return operation.responses.filter ist schicker
   for (const code in operation.responses) {
     if (
       operation.responses[code].description === 'Success' ||
@@ -249,18 +249,19 @@ function getSuccessCodes(operation: ApiResponse): string[] {
 
 function getResponseType(operation: ApiResponse): string {
   let responseType = 'unknown'
+
+  // Versuchst du hier den responseType zu finden und beim ersten ergebnis abzubrechen? dann wäre wahrscheinlich ein find schicker
   for (const code in operation.responses) {
     const response =
       operation.responses[code]?.content?.['application/json']?.schema
 
-    if (response) {
-      if ('type' in response && response.type) {
-        responseType = response.type
-        break
-      } else if ('$ref' in response && response.$ref) {
-        responseType = response.$ref.split('/').pop() || 'unknown'
-        break
-      }
+    if (response?.type && 'type' in response) {
+      responseType = response.type
+      break
+    }
+    if (response?.$ref && '$red' in response) {
+      responseType = response.$ref.split('/').pop() || 'unknown'
+      break
     }
   }
   if (responseType === 'array') responseType = `Array<${operation.tags[0]}>`
@@ -272,7 +273,7 @@ function writeServiceToFile(serviceName: string, serviceContent: string) {
   const filePath = path.join(servicesDir, fileName)
   fs.writeFileSync(filePath, serviceContent, 'utf8')
 
-  if (usePrettierGlobal === true) formatFile(`./services/${fileName}`)
+  if (usePrettierGlobal) formatFile(`./services/${fileName}`)
 
   console.log(chalk.green(`${fileName} has been generated.`))
 }
@@ -285,12 +286,13 @@ function generateServiceForTag(
   const serviceName = `${tag}.service`
   const classNameRefactor = serviceName
     .split('.')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1)) 
     .join('')
   const className = classNameRefactor //serviceName.replace(/\./g, '')
 
   const interfaces = generateInterfacesFromSchemas(schemas)
   const methods = generateServiceMethods(paths)
+  // Die code-templates würde ich in eine extra datei auslagern
   const angularServiceBoilerplate = `/*This file was generated automatically.
  ************************Your Imports may be different.*************************/
   import { Injectable } from '@angular/core';
@@ -319,6 +321,7 @@ function getMethodName(
   return `${method}${name.charAt(0).toUpperCase() + name.slice(1)}`
 }
 
+// Kann type wirklich number sein, sind doch nur string-indexes in typeMappings
 function mapOpenApiTypeToTypeScript(type: string | number) {
   const typeMappings = {
     integer: 'number',
@@ -358,10 +361,11 @@ function generateMiddleWare() {
   const filePath = path.join(servicesDir, 'handleError.ts')
 
   fs.writeFileSync(filePath, code)
-  if (usePrettierGlobal === true) formatFile('./services/handleError.ts')
+  if (usePrettierGlobal) formatFile('./services/handleError.ts')
   console.log(chalk.green('handleError.ts file created successfully.'))
 }
 
+// Der name ist kacke, die macht ja viel mehr als nur einen filepath zurückzugeben
 export async function getFilePath(
   openApiSpecPath: string,
   usePrettier: boolean,
@@ -370,6 +374,7 @@ export async function getFilePath(
   const openApiSpec = JSON.parse(openApiSpecContents)
   fs.mkdirSync('services', { recursive: true })
   //side effect, that is used for cleaning up files
+  // "richtiger" wäre es, das als param durchzureichen oder du schreibst es in der index.ts in process.env und fragst das hier ab
   usePrettierGlobal = usePrettier
   generateAngularServices(openApiSpec)
   generateMiddleWare()

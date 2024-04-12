@@ -7,28 +7,16 @@ import { createSpinner } from 'nanospinner'
 import figlet from 'figlet'
 import { getFilePath } from './src/codeGenerator'
 
-const checkFileExists = (filePath) => {
-  return fs.existsSync(filePath)
-}
-
 const run = async () => {
   console.log(chalk.blue('Welcome to the best Angular Codegeneration Tool!'))
 
-  const { filePath } = await inquirer.prompt([
+  const { filePath, usePrettier } = await inquirer.prompt([
     {
       type: 'input',
       name: 'filePath',
       message: 'Please provide your file path:',
-      validate: (input) => {
-        if (!checkFileExists(input)) {
-          return 'File does not exist at the specified path. Please enter a valid path.'
-        }
-        return true
-      },
+      validate: (input) => fs.existsSync(filePath) || 'File does not exist at the specified path. Please enter a valid path.',
     },
-  ])
-
-  const { usePrettier } = await inquirer.prompt([
     {
       type: 'confirm',
       name: 'usePrettier',
@@ -41,6 +29,8 @@ const run = async () => {
 
   try {
     await getFilePath(filePath, usePrettier)
+
+    // figlet hat auch ne sync methode, dann kannst dir den errorblock drin sparen
     figlet('Success!', (err, data) => {
       if (err) {
         spinner.error({ text: `Error: ${err.message}` })
