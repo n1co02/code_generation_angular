@@ -148,7 +148,7 @@ function generateServiceMethods(paths: PathOperation[]): string {
     const responseType = getResponseType(operation as ApiResponse)
     const successCodes = getSuccessCodes(operation as ApiResponse)
 
-    const successCode = successCodes.length > 0 ? successCodes[0] : '200' // Fallback or handling if `successCodes` is empty
+    const successCode = successCodes.length > 0 ? successCodes[0] : '200'
 
     const methodString = METHOD_TEMPLATE.replace('{{methodName}}', methodName)
       .replace(/{{params}}/g, params)

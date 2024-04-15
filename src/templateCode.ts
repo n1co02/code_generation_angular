@@ -1,4 +1,3 @@
-// service-templates.ts
 export const SERVICE_TEMPLATE = `
 @Injectable({
   providedIn: 'root'
@@ -22,7 +21,7 @@ export const METHOD_TEMPLATE = `
       catchError(handleError) 
     );
   }\n`
-// service-templates.ts
+
 export const ANGULAR_SERVICE_TEMPLATE = `/*This file was generated automatically.
 ************************ Your Imports may be different. *************************/
 import { Injectable } from '@angular/core';
