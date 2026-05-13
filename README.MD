@@ -1,1 +1,2 @@
-npx tsx .\index.ts .\config\paulDemo.json
+npx tsx index.ts
+./config/demoSpec.json
